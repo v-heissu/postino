@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Postino - API Pagination Aggregator</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -194,7 +195,8 @@
       <label>Risultato aggregato:</label>
       <div>
         <button class="btn-secondary" onclick="copyResult()">Copia JSON</button>
-        <button class="btn-secondary" onclick="downloadResult()">Download</button>
+        <button class="btn-secondary" onclick="downloadResult()">JSON</button>
+        <button class="btn-secondary" onclick="downloadExcel()">Excel</button>
         <span id="copySuccess" class="copy-success hidden">Copiato!</span>
       </div>
     </div>
@@ -311,6 +313,66 @@
       a.download = `postino-export-${new Date().toISOString().slice(0,10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // Flatten nested object: { a: { b: 1 } } => { "a.b": 1 }
+    function flattenObject(obj, prefix = '', result = {}) {
+      if (obj === null || obj === undefined) {
+        result[prefix] = '';
+        return result;
+      }
+
+      if (Array.isArray(obj)) {
+        if (obj.length === 0) {
+          result[prefix] = '';
+        } else if (typeof obj[0] === 'object' && obj[0] !== null) {
+          // Array of objects: flatten each with index
+          obj.forEach((item, idx) => {
+            flattenObject(item, prefix ? `${prefix}[${idx}]` : `[${idx}]`, result);
+          });
+        } else {
+          // Array of primitives: join with comma
+          result[prefix] = obj.join(', ');
+        }
+        return result;
+      }
+
+      if (typeof obj === 'object') {
+        for (const key of Object.keys(obj)) {
+          const newKey = prefix ? `${prefix}.${key}` : key;
+          flattenObject(obj[key], newKey, result);
+        }
+        return result;
+      }
+
+      result[prefix] = obj;
+      return result;
+    }
+
+    function downloadExcel() {
+      if (!resultData || !Array.isArray(resultData)) return;
+
+      // Flatten all objects
+      const flatData = resultData.map(item => flattenObject(item));
+
+      // Get all unique columns
+      const allColumns = new Set();
+      flatData.forEach(row => {
+        Object.keys(row).forEach(key => allColumns.add(key));
+      });
+      const columns = Array.from(allColumns).sort();
+
+      // Create worksheet data
+      const wsData = [columns]; // header row
+      flatData.forEach(row => {
+        wsData.push(columns.map(col => row[col] ?? ''));
+      });
+
+      // Create workbook and download
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Data');
+      XLSX.writeFile(wb, `postino-export-${new Date().toISOString().slice(0,10)}.xlsx`);
     }
   </script>
 </body>
