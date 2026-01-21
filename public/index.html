@@ -32,7 +32,7 @@
       font-weight: 600;
       color: #333;
     }
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
@@ -40,11 +40,18 @@
       font-size: 14px;
       font-family: inherit;
     }
+    .form-row {
+      display: flex;
+      gap: 15px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
     textarea {
       font-family: 'Monaco', 'Menlo', monospace;
       resize: vertical;
     }
-    input:focus, textarea:focus {
+    input:focus, textarea:focus, select:focus {
       outline: none;
       border-color: #4a90d9;
       box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
@@ -150,6 +157,34 @@
 }</textarea>
   </div>
 
+  <div class="form-row">
+    <div class="form-group">
+      <label for="maxPages">Max Pages</label>
+      <select id="maxPages">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="0">Illimitato</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="delay">Delay tra chiamate (ms)</label>
+      <select id="delay">
+        <option value="0">Nessuno</option>
+        <option value="200">200ms</option>
+        <option value="500" selected>500ms</option>
+        <option value="1000">1 secondo</option>
+        <option value="2000">2 secondi</option>
+        <option value="5000">5 secondi</option>
+      </select>
+    </div>
+  </div>
+
   <button id="fetchBtn" onclick="startFetch()">Fetch All Pages</button>
 
   <div id="log"></div>
@@ -187,6 +222,8 @@
       const endpoint = document.getElementById('endpoint').value.trim();
       const token = document.getElementById('token').value.trim();
       const body = document.getElementById('body').value.trim();
+      const maxPages = parseInt(document.getElementById('maxPages').value);
+      const delay = parseInt(document.getElementById('delay').value);
 
       if (!endpoint || !token || !body) {
         alert('Compila tutti i campi');
@@ -205,13 +242,13 @@
       document.getElementById('resultSection').classList.add('hidden');
       resultData = null;
 
-      log('Avvio fetch paginato...');
+      log(`Avvio fetch paginato (max ${maxPages || '∞'} pagine, delay ${delay}ms)...`);
 
       try {
         const response = await fetch('/api/fetch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint, token, body })
+          body: JSON.stringify({ endpoint, token, body, maxPages, delay })
         });
 
         const reader = response.body.getReader();
