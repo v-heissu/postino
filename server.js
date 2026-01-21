@@ -9,8 +9,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 app.post('/api/fetch', async (req, res) => {
-  const { endpoint, body, token } = req.body;
+  const { endpoint, body, token, maxPages = 10, delay = 500 } = req.body;
 
   if (!endpoint || !body || !token) {
     return res.status(400).json({ error: 'Missing endpoint, body, or token' });
@@ -24,6 +26,7 @@ app.post('/api/fetch', async (req, res) => {
   }
 
   const limit = parsedBody.limit || 1000;
+  const maxPagesLimit = maxPages === 0 ? 1000 : maxPages; // 0 = unlimited (capped at 1000)
   let offset = parsedBody.offset || 0;
   let allResults = [];
   let totalFetched = 0;
@@ -88,12 +91,18 @@ app.post('/api/fetch', async (req, res) => {
         break;
       }
 
+      // Stop if we reached max pages
+      if (pageCount >= maxPagesLimit) {
+        sendProgress(`Reached max pages limit (${maxPagesLimit})`);
+        break;
+      }
+
       offset += limit;
 
-      // Safety limit to prevent infinite loops
-      if (pageCount >= 100) {
-        sendProgress('Warning: Reached maximum page limit (100)');
-        break;
+      // Add delay between calls
+      if (delay > 0) {
+        sendProgress(`Waiting ${delay}ms...`);
+        await sleep(delay);
       }
     }
 
